@@ -2,51 +2,22 @@ use bevy::{prelude::*, render::camera::RenderTarget};
 
 const SCALE: f32 = 5.;
 const BOUNDARY: i8 = 65;
+const NUM_CELLS: usize = 17161;
 
 mod components;
 use components::{Gravity, Particle};
+mod sprites;
+use sprites::SPRITES;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Element {
+    Empty,
     Foundation,
     Sand,
     Stone,
 }
 
-struct Sprites<'a> {
-    foundation: Color,
-    stone: Color,
-    sand: &'a [Color],
-}
-
-const SPRITES: Sprites = Sprites {
-    foundation: Color::Rgba {
-        red: 0.15,
-        green: 0.15,
-        blue: 0.15,
-        alpha: 1.0,
-    },
-    stone: Color::Rgba {
-        red: 0.,
-        green: 0.,
-        blue: 0.7,
-        alpha: 1.0,
-    },
-    sand: &[
-        Color::Rgba {
-            red: 0.5,
-            green: 0.,
-            blue: 0.,
-            alpha: 1.0,
-        },
-        Color::Rgba {
-            red: 0.,
-            green: 0.5,
-            blue: 0.,
-            alpha: 1.0,
-        },
-    ],
-};
+struct Universe<'a>(&'a [Element]);
 
 // Spawn the vertical and horizontal bounding walls
 fn spawn_boundaries(mut commands: Commands) {
@@ -89,6 +60,7 @@ fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Elem
         Element::Foundation => SPRITES.foundation,
         Element::Sand => SPRITES.sand[0],
         Element::Stone => SPRITES.stone,
+        Element::Empty => SPRITES.none,
     };
 
     let particle = commands
@@ -113,6 +85,9 @@ fn setup(mut commands: Commands) {
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.orthographic_projection.scale /= SCALE;
     commands.spawn_bundle(camera);
+
+    // Setup universe as empty
+    commands.insert_resource(Universe(&[Element::Empty; NUM_CELLS]))
 }
 
 // Get mouse coordinate in world space and place a particle if within the
