@@ -1,6 +1,7 @@
 use crate::constants::NUM_CELLS;
 use crate::{Element, BOUNDARY};
 
+// Track the contents of every placeable cell
 pub struct Universe {
     elements: [Element; NUM_CELLS],
 }
