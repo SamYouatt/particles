@@ -1,7 +1,7 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
 
 const SCALE: f32 = 5.;
-const BOUNDARY: i8 = 65;
+const BOUNDARY: i32 = 65;
 const NUM_CELLS: usize = 17161;
 
 mod components;
@@ -17,11 +17,40 @@ pub enum Element {
     Stone,
 }
 
-struct Universe<'a>(&'a [Element]);
+struct Universe {
+    elements: [Element; NUM_CELLS],
+}
+
+impl Universe {
+    fn new() -> Universe {
+        Universe {
+            elements: [Element::Empty; NUM_CELLS],
+        }
+    }
+
+    fn element_at_coord(&self, x: f32, y: f32) -> Element {
+        let index = Universe::index_from_xy(x, y);
+        self.elements[index]
+    }
+
+    fn index_from_xy(x: f32, y: f32) -> usize {
+        let radius = BOUNDARY - 1;
+        let shifted_x = (x + radius as f32) as usize;
+        let shifted_y = (y + radius as f32) as usize;
+        let width = (radius * 2 + 1) as usize;
+        let index: usize = shifted_x + (width * shifted_y);
+
+        index
+    }
+
+    fn set_element_at_coord(&mut self, x: f32, y: f32, element: Element) {
+        let index = Universe::index_from_xy(x, y);
+        self.elements[index] = element;
+    }
+}
 
 // Spawn the vertical and horizontal bounding walls
 fn spawn_boundaries(mut commands: Commands) {
-    let boundary_size = 65;
     // vertical walls
     for pos_y in -BOUNDARY..=BOUNDARY {
         spawn_particle(
@@ -82,12 +111,13 @@ fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Elem
 }
 
 fn setup(mut commands: Commands) {
+    // setup camera and add scaling
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.orthographic_projection.scale /= SCALE;
     commands.spawn_bundle(camera);
 
     // Setup universe as empty
-    commands.insert_resource(Universe(&[Element::Empty; NUM_CELLS]))
+    commands.insert_resource(Universe::new());
 }
 
 // Get mouse coordinate in world space and place a particle if within the
@@ -98,6 +128,7 @@ fn handle_click(
     mouse_input: Res<Input<MouseButton>>,
     wnds: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
+    mut universe: ResMut<Universe>,
 ) {
     let (camera, camera_transform) = q_camera.single();
 
@@ -121,6 +152,8 @@ fn handle_click(
 
             if x < limit && x > -limit && y < limit && y > -limit {
                 spawn_particle(&mut commands, x, y, Element::Sand);
+                universe.element_at_coord(x, y);
+                universe.set_element_at_coord(x, y, Element::Sand);
             }
         }
     }
@@ -132,7 +165,6 @@ fn gravity(mut query: Query<&mut Transform, (With<Gravity>, With<Particle>)>) {
     for mut transform in query.iter_mut() {
         if transform.translation.y > -((BOUNDARY - 1) as f32) {
             transform.translation.y -= 1.;
-            // eprintln!("A particle moved");
         }
     }
 }
