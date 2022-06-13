@@ -1,13 +1,13 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
 
-const SCALE: f32 = 5.;
-const BOUNDARY: i32 = 65;
-const NUM_CELLS: usize = 17161;
-
 mod components;
 use components::{Gravity, Particle};
 mod sprites;
+use constants::{BOUNDARY, SCALE};
 use sprites::SPRITES;
+use universe::Universe;
+mod constants;
+mod universe;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Element {
@@ -15,38 +15,6 @@ pub enum Element {
     Foundation,
     Sand,
     Stone,
-}
-
-struct Universe {
-    elements: [Element; NUM_CELLS],
-}
-
-impl Universe {
-    fn new() -> Universe {
-        Universe {
-            elements: [Element::Empty; NUM_CELLS],
-        }
-    }
-
-    fn element_at_coord(&self, x: f32, y: f32) -> Element {
-        let index = Universe::index_from_xy(x, y);
-        self.elements[index]
-    }
-
-    fn index_from_xy(x: f32, y: f32) -> usize {
-        let radius = BOUNDARY - 1;
-        let shifted_x = (x + radius as f32) as usize;
-        let shifted_y = (y + radius as f32) as usize;
-        let width = (radius * 2 + 1) as usize;
-        let index: usize = shifted_x + (width * shifted_y);
-
-        index
-    }
-
-    fn set_element_at_coord(&mut self, x: f32, y: f32, element: Element) {
-        let index = Universe::index_from_xy(x, y);
-        self.elements[index] = element;
-    }
 }
 
 // Spawn the vertical and horizontal bounding walls
