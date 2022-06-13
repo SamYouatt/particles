@@ -102,7 +102,7 @@ fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Elem
             ..Default::default()
         })
         .insert(Transform::from_xyz(pos_x, pos_y, 0.))
-        .insert(Particle)
+        .insert(Particle(element))
         .id();
 
     if element == Element::Sand {
@@ -160,10 +160,21 @@ fn handle_click(
 }
 
 // Handle all gravity actions on particles affected by gravity
-// TODO: prevent collisions with other particles
-fn gravity(mut query: Query<&mut Transform, (With<Gravity>, With<Particle>)>) {
-    for mut transform in query.iter_mut() {
-        if transform.translation.y > -((BOUNDARY - 1) as f32) {
+// TODO: implement sliding
+fn gravity(
+    mut universe: ResMut<Universe>,
+    mut query: Query<(&mut Transform, &Particle), With<Gravity>>,
+) {
+    let floor = -((BOUNDARY - 1) as f32);
+
+    for (mut transform, particle) in query.iter_mut() {
+        let x = transform.translation.x;
+        let y = transform.translation.y;
+        let element_below = universe.element_at_coord(x, y - 1.);
+
+        if y > floor && element_below == Element::Empty {
+            universe.set_element_at_coord(x, y, Element::Empty);
+            universe.set_element_at_coord(x, y - 1., particle.0);
             transform.translation.y -= 1.;
         }
     }
