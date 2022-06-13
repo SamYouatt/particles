@@ -4,6 +4,7 @@ mod components;
 use components::{Gravity, Particle};
 mod sprites;
 use constants::{BOUNDARY, SCALE};
+use sprites::get_sprite_color;
 use sprites::SPRITES;
 use universe::Universe;
 mod constants;
@@ -54,10 +55,10 @@ fn spawn_boundaries(mut commands: Commands) {
 
 fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Element) {
     let sprite = match element {
-        Element::Foundation => SPRITES.foundation,
-        Element::Sand => SPRITES.sand[0],
-        Element::Stone => SPRITES.stone,
-        Element::Empty => SPRITES.none,
+        Element::Foundation => get_sprite_color(SPRITES.foundation),
+        Element::Sand => get_sprite_color(SPRITES.sand),
+        Element::Stone => get_sprite_color(SPRITES.stone),
+        Element::Empty => get_sprite_color(SPRITES.none),
     };
 
     let particle = commands
