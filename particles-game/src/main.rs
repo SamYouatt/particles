@@ -1,13 +1,17 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
 
 mod components;
+use brush::get_brush_locations;
+use brush::Brush;
+use brush::BrushSize;
 use components::{Gravity, Particle};
 mod sprites;
 use constants::{BOUNDARY, SCALE};
-use rand::Rng;
 use sprites::get_sprite_color;
 use sprites::SPRITES;
 use universe::Universe;
+
+mod brush;
 mod constants;
 mod universe;
 
@@ -88,6 +92,9 @@ fn setup(mut commands: Commands) {
 
     // Setup universe as empty
     commands.insert_resource(Universe::new());
+
+    // Setup default brush
+    commands.insert_resource(Brush(BrushSize::Small));
 }
 
 // Get mouse coordinate in world space and place a particle if within the
@@ -98,6 +105,7 @@ fn handle_click(
     mouse_input: Res<Input<MouseButton>>,
     wnds: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
+    brush: Res<Brush>,
     mut universe: ResMut<Universe>,
 ) {
     let (camera, camera_transform) = q_camera.single();
@@ -120,11 +128,44 @@ fn handle_click(
             let y = world_pos.y.round();
             let limit = BOUNDARY as f32;
 
-            if x < limit && x > -limit && y < limit && y > -limit {
-                spawn_particle(&mut commands, x, y, Element::Sand);
-                universe.element_at_coord(x, y);
-                universe.set_element_at_coord(x, y, Element::Sand);
-            }
+            get_brush_locations(x, y, &brush.0).for_each(|(dx, dy)| {
+                let dx = dx as f32;
+                let dy = dy as f32;
+
+                if dx < limit
+                    && dx > -limit
+                    && dy < limit
+                    && dy > -limit
+                    && universe.element_at_coord(dx, dy) == Element::Empty
+                {
+                    spawn_particle(&mut commands, dx, dy, Element::Sand);
+                    universe.set_element_at_coord(dx, dy, Element::Sand);
+                }
+            })
+        }
+    }
+}
+
+fn handle_keyboard(keyboard_input: Res<Input<KeyCode>>, mut brush: ResMut<Brush>) {
+    if keyboard_input.just_pressed(KeyCode::Up) {
+        println!("Brush size increased");
+        match brush.0 {
+            BrushSize::Small => brush.0 = BrushSize::Medium,
+            BrushSize::Medium => brush.0 = BrushSize::Large,
+            BrushSize::Large => brush.0 = BrushSize::XLarge,
+            BrushSize::XLarge => brush.0 = BrushSize::XXLarge,
+            BrushSize::XXLarge => (), // max size
+        }
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Down) {
+        println!("Brush size decreased");
+        match brush.0 {
+            BrushSize::Small => (), // min size
+            BrushSize::Medium => brush.0 = BrushSize::Small,
+            BrushSize::Large => brush.0 = BrushSize::Medium,
+            BrushSize::XLarge => brush.0 = BrushSize::Large,
+            BrushSize::XXLarge => brush.0 = BrushSize::XLarge, // max size
         }
     }
 }
@@ -181,6 +222,7 @@ fn main() {
         .add_startup_system(setup)
         .add_startup_system(spawn_boundaries)
         .add_system(handle_click)
+        .add_system(handle_keyboard)
         .add_system(gravity)
         .run();
 }
