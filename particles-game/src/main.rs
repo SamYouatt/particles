@@ -4,6 +4,7 @@ mod components;
 use components::{Gravity, Particle};
 mod sprites;
 use constants::{BOUNDARY, SCALE};
+use rand::Rng;
 use sprites::get_sprite_color;
 use sprites::SPRITES;
 use universe::Universe;
@@ -134,17 +135,36 @@ fn gravity(
     mut universe: ResMut<Universe>,
     mut query: Query<(&mut Transform, &Particle), With<Gravity>>,
 ) {
-    let floor = -((BOUNDARY - 1) as f32);
+    let floor_limit = -((BOUNDARY - 1) as f32);
+    let left_limit = -((BOUNDARY - 1) as f32);
+    let right_limit = (BOUNDARY - 1) as f32;
 
     for (mut transform, particle) in query.iter_mut() {
         let x = transform.translation.x;
         let y = transform.translation.y;
         let element_below = universe.element_at_coord(x, y - 1.);
 
-        if y > floor && element_below == Element::Empty {
+        if y > floor_limit && element_below == Element::Empty {
+            // Straight down
             universe.set_element_at_coord(x, y, Element::Empty);
             universe.set_element_at_coord(x, y - 1., particle.0);
             transform.translation.y -= 1.;
+        } else {
+            // Slide left or right
+            let element_right = universe.element_at_coord(x + 1., y - 1.);
+            let element_left = universe.element_at_coord(x - 1., y - 1.);
+
+            if y > floor_limit && x < right_limit && element_right == Element::Empty {
+                universe.set_element_at_coord(x, y, Element::Empty);
+                universe.set_element_at_coord(x + 1., y - 1., particle.0);
+                transform.translation.y -= 1.;
+                transform.translation.x += 1.;
+            } else if y > floor_limit && x > left_limit && element_left == Element::Empty {
+                universe.set_element_at_coord(x, y, Element::Empty);
+                universe.set_element_at_coord(x - 1., y - 1., particle.0);
+                transform.translation.y -= 1.;
+                transform.translation.x -= 1.;
+            }
         }
     }
 }

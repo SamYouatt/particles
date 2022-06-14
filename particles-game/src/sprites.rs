@@ -6,13 +6,6 @@ pub enum SpriteType<'a> {
     Range(&'a [Color]),
 }
 
-// pub struct Sprites<'a> {
-//     pub foundation: Color,
-//     pub stone: Color,
-//     pub sand: &'a [Color],
-//     pub none: Color,
-// }
-
 pub struct Sprites<'a> {
     pub foundation: SpriteType<'a>,
     pub stone: SpriteType<'a>,
