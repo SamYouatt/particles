@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import init from './out/particles-game.js';
+import init from './webasm-particles/particles-game.js';
 
 init();
 
