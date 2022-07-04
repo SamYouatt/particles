@@ -1,4 +1,6 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
+use constants::GRAVITY;
+use constants::TERMINAL_VELOCITY;
 use rand::Rng;
 
 mod components;
@@ -279,9 +281,9 @@ fn gravity(
             transform.translation.y = next_y;
         }
 
-        if vel.0.y < 3. && vel.0.y > -3. {
+        if vel.0.y < TERMINAL_VELOCITY && vel.0.y > -TERMINAL_VELOCITY {
             // gravity acceleration
-            vel.0.y += -1.;
+            vel.0.y += GRAVITY;
         }
 
         // let x = transform.translation.x;
