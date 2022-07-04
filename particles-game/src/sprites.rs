@@ -1,4 +1,4 @@
-use bevy::prelude::Color;
+use bevy::{prelude::Color, sprite::Sprite};
 use rand::seq::SliceRandom;
 
 pub enum SpriteType<'a> {
@@ -10,6 +10,7 @@ pub struct Sprites<'a> {
     pub foundation: SpriteType<'a>,
     pub stone: SpriteType<'a>,
     pub sand: SpriteType<'a>,
+    pub water: SpriteType<'a>,
     pub none: SpriteType<'a>,
 }
 
@@ -22,8 +23,8 @@ pub const SPRITES: Sprites = Sprites {
     }),
     stone: SpriteType::Single(Color::Rgba {
         red: 0.,
-        green: 0.,
-        blue: 0.7,
+        green: 0.7,
+        blue: 0.,
         alpha: 1.0,
     }),
     sand: SpriteType::Range(&[
@@ -40,6 +41,12 @@ pub const SPRITES: Sprites = Sprites {
             alpha: 1.0,
         },
     ]),
+    water: SpriteType::Single(Color::Rgba {
+        red: 0.,
+        green: 0.,
+        blue: 1.,
+        alpha: 1.,
+    }),
     none: SpriteType::Single(Color::Rgba {
         red: 0.,
         green: 0.,
