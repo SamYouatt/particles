@@ -1,4 +1,5 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
+use rand::Rng;
 
 mod components;
 use brush::get_brush_locations;
@@ -179,8 +180,18 @@ fn handle_click(
                     && dy > -limit
                     && universe.element_at_coord(dx, dy) == Element::Empty
                 {
-                    spawn_particle(&mut commands, dx, dy, placing.0);
-                    universe.set_element_at_coord(dx, dy, placing.0);
+                    // Randomise the placement of sand particles for nicer brush
+                    let mut rng = rand::thread_rng();
+
+                    if placing.0 == Element::Sand {
+                        if rng.gen::<f32>() < 0.8 {
+                            spawn_particle(&mut commands, dx, dy, placing.0);
+                            universe.set_element_at_coord(dx, dy, placing.0);
+                        }
+                    } else {
+                        spawn_particle(&mut commands, dx, dy, placing.0);
+                        universe.set_element_at_coord(dx, dy, placing.0);
+                    }
                 }
             })
         }
