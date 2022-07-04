@@ -1,9 +1,12 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
+use rand::Rng;
 
 mod components;
 use brush::get_brush_locations;
 use brush::Brush;
 use brush::BrushSize;
+use components::Fluid;
+use components::Velocity;
 use components::{Gravity, Particle};
 mod sprites;
 use constants::{BOUNDARY, SCALE};
@@ -22,7 +25,10 @@ pub enum Element {
     Foundation,
     Sand,
     Stone,
+    Water,
 }
+
+pub struct Placing(Element);
 
 #[wasm_bindgen]
 pub fn run() {
@@ -36,14 +42,12 @@ pub fn run() {
     })
     .add_plugins(DefaultPlugins);
 
-    // #[cfg(target_arch = "wasm32")]
-    // app.add_plugin(bevy_webgl2::WebGL2Plugin);
-
     app.add_startup_system(setup)
         .add_startup_system(spawn_boundaries)
         .add_system(handle_click)
         .add_system(handle_keyboard)
         .add_system(gravity)
+        .add_system(fluid)
         .run();
 }
 
@@ -87,6 +91,7 @@ fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Elem
         Element::Foundation => get_sprite_color(SPRITES.foundation),
         Element::Sand => get_sprite_color(SPRITES.sand),
         Element::Stone => get_sprite_color(SPRITES.stone),
+        Element::Water => get_sprite_color(SPRITES.water),
         Element::Empty => get_sprite_color(SPRITES.none),
     };
 
@@ -104,7 +109,17 @@ fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Elem
         .id();
 
     if element == Element::Sand {
-        commands.entity(particle).insert(Gravity);
+        commands
+            .entity(particle)
+            .insert(Gravity)
+            .insert(Velocity(Vec2::new(0., 0.)));
+    }
+
+    if element == Element::Water {
+        commands
+            .entity(particle)
+            .insert(Fluid { dispersion: 3 })
+            .insert(Velocity(Vec2::new(0., 0.)));
     }
 }
 
@@ -119,11 +134,13 @@ fn setup(mut commands: Commands) {
 
     // Setup default brush
     commands.insert_resource(Brush(BrushSize::Small));
+
+    // Sets sand as default element
+    commands.insert_resource(Placing(Element::Sand));
 }
 
 // Get mouse coordinate in world space and place a particle if within the
 // boundaries.
-// TODO: Spawn in brush area, shouldn't spawn outside
 fn handle_click(
     mut commands: Commands,
     mouse_input: Res<Input<MouseButton>>,
@@ -131,6 +148,7 @@ fn handle_click(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     brush: Res<Brush>,
     mut universe: ResMut<Universe>,
+    placing: Res<Placing>,
 ) {
     let (camera, camera_transform) = q_camera.single();
 
@@ -162,15 +180,29 @@ fn handle_click(
                     && dy > -limit
                     && universe.element_at_coord(dx, dy) == Element::Empty
                 {
-                    spawn_particle(&mut commands, dx, dy, Element::Sand);
-                    universe.set_element_at_coord(dx, dy, Element::Sand);
+                    // Randomise the placement of sand particles for nicer brush
+                    let mut rng = rand::thread_rng();
+
+                    if placing.0 == Element::Sand {
+                        if rng.gen::<f32>() < 0.8 {
+                            spawn_particle(&mut commands, dx, dy, placing.0);
+                            universe.set_element_at_coord(dx, dy, placing.0);
+                        }
+                    } else {
+                        spawn_particle(&mut commands, dx, dy, placing.0);
+                        universe.set_element_at_coord(dx, dy, placing.0);
+                    }
                 }
             })
         }
     }
 }
 
-fn handle_keyboard(keyboard_input: Res<Input<KeyCode>>, mut brush: ResMut<Brush>) {
+fn handle_keyboard(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut brush: ResMut<Brush>,
+    mut placing: ResMut<Placing>,
+) {
     if keyboard_input.just_pressed(KeyCode::Up) {
         println!("Brush size increased");
         match brush.0 {
@@ -192,19 +224,102 @@ fn handle_keyboard(keyboard_input: Res<Input<KeyCode>>, mut brush: ResMut<Brush>
             BrushSize::XXLarge => brush.0 = BrushSize::XLarge,
         }
     }
+
+    if keyboard_input.just_pressed(KeyCode::S) {
+        println!("Switched to sand");
+        placing.0 = Element::Sand;
+    }
+
+    if keyboard_input.just_pressed(KeyCode::W) {
+        println!("Switched to water");
+        placing.0 = Element::Water;
+    }
+
+    if keyboard_input.just_pressed(KeyCode::C) {
+        println!("Switched to stone");
+        placing.0 = Element::Stone;
+    }
 }
 
 // Handle all gravity actions on particles affected by gravity
-// TODO: implement sliding
 fn gravity(
     mut universe: ResMut<Universe>,
-    mut query: Query<(&mut Transform, &Particle), With<Gravity>>,
+    mut query: Query<(&mut Transform, &Particle, &mut Velocity), With<Gravity>>,
 ) {
     let floor_limit = -((BOUNDARY - 1) as f32);
     let left_limit = -((BOUNDARY - 1) as f32);
     let right_limit = (BOUNDARY - 1) as f32;
 
-    for (mut transform, particle) in query.iter_mut() {
+    for (mut transform, particle, mut vel) in query.iter_mut() {
+        // Check valid locations within velocity, starting at furthest
+
+        let mut next_y = transform.translation.y;
+
+        // Check every place along its path and if its valid update its next position
+        // Once done the furthest possible location along the path will be the next position
+        for delta_y in 0..(vel.0.y.abs() as usize) {
+            let sign = if vel.0.y < 0. { -1. } else { 1. };
+            let check_y = transform.translation.y + (delta_y as f32 * sign);
+            let element_at_next = universe.element_at_coord(transform.translation.x, check_y);
+
+            // If valid position update next coord
+            if check_y > -(BOUNDARY) as f32 && element_at_next == Element::Empty {
+                next_y = check_y;
+            }
+        }
+
+        // Only update if particle should move
+        if next_y != transform.translation.y {
+            universe.set_element_at_coord(
+                transform.translation.x,
+                transform.translation.y,
+                Element::Empty,
+            );
+            universe.set_element_at_coord(transform.translation.x, next_y, particle.0);
+            transform.translation.y = next_y;
+        }
+
+        if vel.0.y < 3. && vel.0.y > -3. {
+            // gravity acceleration
+            vel.0.y += -1.;
+        }
+
+        // let x = transform.translation.x;
+        // let y = transform.translation.y;
+        // let element_below = universe.element_at_coord(x, y - 1.);
+
+        // if y > floor_limit && element_below == Element::Empty {
+        //     // Straight down
+        //     universe.set_element_at_coord(x, y, Element::Empty);
+        //     universe.set_element_at_coord(x, y - 1., particle.0);
+        //     transform.translation.y -= 1.;
+        // } else {
+        //     // Slide left or right
+        //     let element_right = universe.element_at_coord(x + 1., y - 1.);
+        //     let element_left = universe.element_at_coord(x - 1., y - 1.);
+
+        //     if y > floor_limit && x < right_limit && element_right == Element::Empty {
+        //         universe.set_element_at_coord(x, y, Element::Empty);
+        //         universe.set_element_at_coord(x + 1., y - 1., particle.0);
+        //         transform.translation.y -= 1.;
+        //         transform.translation.x += 1.;
+        //     } else if y > floor_limit && x > left_limit && element_left == Element::Empty {
+        //         universe.set_element_at_coord(x, y, Element::Empty);
+        //         universe.set_element_at_coord(x - 1., y - 1., particle.0);
+        //         transform.translation.y -= 1.;
+        //         transform.translation.x -= 1.;
+        //     }
+        // }
+    }
+}
+
+// Will check left and right for movement opportunities
+fn fluid(mut universe: ResMut<Universe>, mut query: Query<(&mut Transform, &Particle, &Fluid)>) {
+    let floor_limit = -((BOUNDARY - 1) as f32);
+    let left_limit = -((BOUNDARY - 1) as f32);
+    let right_limit = (BOUNDARY - 1) as f32;
+
+    for (mut transform, particle, fluid) in query.iter_mut() {
         let x = transform.translation.x;
         let y = transform.translation.y;
         let element_below = universe.element_at_coord(x, y - 1.);
@@ -216,19 +331,23 @@ fn gravity(
             transform.translation.y -= 1.;
         } else {
             // Slide left or right
-            let element_right = universe.element_at_coord(x + 1., y - 1.);
-            let element_left = universe.element_at_coord(x - 1., y - 1.);
+            for delta in 1..fluid.dispersion {
+                let element_right = universe.element_at_coord(x + (delta as f32), y);
+                let element_left = universe.element_at_coord(x - (delta as f32), y);
 
-            if y > floor_limit && x < right_limit && element_right == Element::Empty {
-                universe.set_element_at_coord(x, y, Element::Empty);
-                universe.set_element_at_coord(x + 1., y - 1., particle.0);
-                transform.translation.y -= 1.;
-                transform.translation.x += 1.;
-            } else if y > floor_limit && x > left_limit && element_left == Element::Empty {
-                universe.set_element_at_coord(x, y, Element::Empty);
-                universe.set_element_at_coord(x - 1., y - 1., particle.0);
-                transform.translation.y -= 1.;
-                transform.translation.x -= 1.;
+                if y > floor_limit && x < right_limit && element_right == Element::Empty {
+                    universe.set_element_at_coord(x, y, Element::Empty);
+                    universe.set_element_at_coord(x + 1., y, particle.0);
+                    // transform.translation.y -= 1.;
+                    transform.translation.x += 1.;
+                    break;
+                } else if y > floor_limit && x > left_limit && element_left == Element::Empty {
+                    universe.set_element_at_coord(x, y, Element::Empty);
+                    universe.set_element_at_coord(x - 1., y, particle.0);
+                    // transform.translation.y -= 1.;
+                    transform.translation.x -= 1.;
+                    break;
+                }
             }
         }
     }
