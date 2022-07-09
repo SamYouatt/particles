@@ -260,7 +260,7 @@ fn gravity(
 
         // Check every place along its path and if its valid update its next position
         // Once done the furthest possible location along the path will be the next position
-        for delta_y in 0..(vel.0.y.abs() as usize) {
+        for delta_y in 1..(vel.0.y.abs() as usize) {
             let sign = if vel.0.y < 0. { -1. } else { 1. };
             let check_y = transform.translation.y + (delta_y as f32 * sign);
             let element_at_next = universe.element_at_coord(transform.translation.x, check_y);
@@ -269,7 +269,7 @@ fn gravity(
             // Empty below - drop down
             if check_y > -(BOUNDARY) as f32 && element_at_next == Element::Empty {
                 next_y = check_y;
-            } else if delta_y > 0 {
+            } else {
                 // Slide left or right
                 let element_right =
                     universe.element_at_coord(transform.translation.x + 1., check_y);
@@ -287,6 +287,9 @@ fn gravity(
                 {
                     next_y = check_y;
                     next_x = transform.translation.x - 1.;
+                } else {
+                    // Nowhere for particle to go so stop trying
+                    break;
                 }
             }
         }
