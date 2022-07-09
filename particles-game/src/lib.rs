@@ -289,6 +289,7 @@ fn gravity(
                     next_x = transform.translation.x - 1.;
                 } else {
                     // Nowhere for particle to go so stop trying
+                    vel.0 = Vec2::new(0., 0.);
                     break;
                 }
             }
