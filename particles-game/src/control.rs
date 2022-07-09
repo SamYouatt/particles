@@ -5,7 +5,7 @@ use crate::{
     brush::{get_brush_locations, Brush, BrushSize},
     constants::BOUNDARY,
     spawn_particle,
-    universe::Universe,
+    universe::{Cell, Universe},
     Element, Placing,
 };
 
@@ -50,18 +50,36 @@ pub fn handle_click(
                     && dy > -limit
                     && universe.element_at_coord(dx, dy) == Element::Empty
                 {
-                    // Randomise the placement of sand particles for nicer brush
+                    // Randomise the placement of certain particles for nicer brush
                     let mut rng = rand::thread_rng();
 
-                    if placing.0 == Element::Sand {
-                        if rng.gen::<f32>() < 0.8 {
-                            spawn_particle(&mut commands, dx, dy, placing.0);
+                    match placing.0 {
+                        Element::Sand => {
+                            if rng.gen::<f32>() < 0.8 {
+                                let eid = spawn_particle(&mut commands, dx, dy, placing.0);
+                                universe.set_element_at_coord(dx, dy, placing.0);
+                                universe.set_eid_at_coord(dx, dx, Some(eid));
+                            }
+                        }
+                        Element::Empty => {}
+                        _ => {
+                            let eid = spawn_particle(&mut commands, dx, dy, placing.0);
+                            universe.set_eid_at_coord(dx, dy, Some(eid));
                             universe.set_element_at_coord(dx, dy, placing.0);
                         }
-                    } else {
-                        spawn_particle(&mut commands, dx, dy, placing.0);
-                        universe.set_element_at_coord(dx, dy, placing.0);
                     }
+                } else if dx < limit
+                    && dx > -limit
+                    && dy < limit
+                    && dy > -limit
+                    && placing.0 == Element::Empty
+                {
+                    if let Some(eid) = universe.eid_at_coord(dx, dy) {
+                        commands.entity(eid).despawn();
+                    }
+
+                    let cell = Cell::new(Element::Empty, None);
+                    universe.set_cell_at_coord(dx, dy, cell);
                 }
             })
         }
@@ -108,5 +126,10 @@ pub fn handle_keyboard(
     if keyboard_input.just_pressed(KeyCode::C) {
         println!("Switched to stone");
         placing.0 = Element::Stone;
+    }
+
+    if keyboard_input.just_pressed(KeyCode::E) {
+        println!("Swithed to empty");
+        placing.0 = Element::Empty;
     }
 }

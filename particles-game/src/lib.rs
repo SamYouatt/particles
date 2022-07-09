@@ -91,7 +91,7 @@ fn spawn_boundaries(mut commands: Commands) {
     }
 }
 
-fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Element) {
+fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Element) -> Entity {
     let sprite = match element {
         Element::Foundation => get_sprite_color(SPRITES.foundation),
         Element::Sand => get_sprite_color(SPRITES.sand),
@@ -125,7 +125,9 @@ fn spawn_particle(commands: &mut Commands, pos_x: f32, pos_y: f32, element: Elem
             .entity(particle)
             .insert(Fluid { dispersion: 3 })
             .insert(Velocity(Vec2::new(0., 0.)));
-    }
+    };
+
+    particle
 }
 
 fn setup(mut commands: Commands) {
