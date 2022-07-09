@@ -256,6 +256,7 @@ fn gravity(
         // Check valid locations within velocity, starting at furthest
 
         let mut next_y = transform.translation.y;
+        let mut next_x = transform.translation.x;
 
         // Check every place along its path and if its valid update its next position
         // Once done the furthest possible location along the path will be the next position
@@ -265,53 +266,47 @@ fn gravity(
             let element_at_next = universe.element_at_coord(transform.translation.x, check_y);
 
             // If valid position update next coord
+            // Empty below - drop down
             if check_y > -(BOUNDARY) as f32 && element_at_next == Element::Empty {
                 next_y = check_y;
+            } else if delta_y > 0 {
+                // Slide left or right
+                let element_right =
+                    universe.element_at_coord(transform.translation.x + 1., check_y);
+                let element_left = universe.element_at_coord(transform.translation.x - 1., check_y);
+
+                if check_y > floor_limit
+                    && transform.translation.x < right_limit
+                    && element_right == Element::Empty
+                {
+                    next_y = check_y;
+                    next_x = transform.translation.x + 1.;
+                } else if check_y > floor_limit
+                    && transform.translation.x > left_limit
+                    && element_left == Element::Empty
+                {
+                    next_y = check_y;
+                    next_x = transform.translation.x - 1.;
+                }
             }
         }
 
         // Only update if particle should move
-        if next_y != transform.translation.y {
+        if next_y != transform.translation.y || next_x != transform.translation.x {
             universe.set_element_at_coord(
                 transform.translation.x,
                 transform.translation.y,
                 Element::Empty,
             );
-            universe.set_element_at_coord(transform.translation.x, next_y, particle.0);
+            universe.set_element_at_coord(next_x, next_y, particle.0);
             transform.translation.y = next_y;
+            transform.translation.x = next_x;
         }
 
         if vel.0.y < TERMINAL_VELOCITY && vel.0.y > -TERMINAL_VELOCITY {
             // gravity acceleration
             vel.0.y += GRAVITY;
         }
-
-        // let x = transform.translation.x;
-        // let y = transform.translation.y;
-        // let element_below = universe.element_at_coord(x, y - 1.);
-
-        // if y > floor_limit && element_below == Element::Empty {
-        //     // Straight down
-        //     universe.set_element_at_coord(x, y, Element::Empty);
-        //     universe.set_element_at_coord(x, y - 1., particle.0);
-        //     transform.translation.y -= 1.;
-        // } else {
-        //     // Slide left or right
-        //     let element_right = universe.element_at_coord(x + 1., y - 1.);
-        //     let element_left = universe.element_at_coord(x - 1., y - 1.);
-
-        //     if y > floor_limit && x < right_limit && element_right == Element::Empty {
-        //         universe.set_element_at_coord(x, y, Element::Empty);
-        //         universe.set_element_at_coord(x + 1., y - 1., particle.0);
-        //         transform.translation.y -= 1.;
-        //         transform.translation.x += 1.;
-        //     } else if y > floor_limit && x > left_limit && element_left == Element::Empty {
-        //         universe.set_element_at_coord(x, y, Element::Empty);
-        //         universe.set_element_at_coord(x - 1., y - 1., particle.0);
-        //         transform.translation.y -= 1.;
-        //         transform.translation.x -= 1.;
-        //     }
-        // }
     }
 }
 
@@ -352,5 +347,28 @@ fn fluid(mut universe: ResMut<Universe>, mut query: Query<(&mut Transform, &Part
                 }
             }
         }
+    }
+}
+
+struct CoordPath {
+    start: Vec2,
+    end: Vec2,
+    current: Vec2,
+}
+
+impl Iterator for CoordPath {
+    type Item = Vec2;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // return the next coordinate along a path
+        todo!()
+    }
+}
+
+fn coordinate_path(start: Vec2, end: Vec2) -> CoordPath {
+    CoordPath {
+        start,
+        end,
+        current: start,
     }
 }
